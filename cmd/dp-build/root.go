@@ -35,13 +35,6 @@ func main() {
 
 	hasDebug := os.Getenv("DEBUG") != ""
 
-	// 判断是否使用 sudo 权限或者 root 用户
-	if _, status := tools.IsRootUser(); !status {
-		log.Fatalln("Run dp-build requires root or sudo")
-		return
-	}
-	tools.CheckDpBuildDot()
-
 	RootCmd := execute()
 	if cmd, err := RootCmd.ExecuteC(); err != nil {
 		if err == tools.SilentError {
@@ -59,6 +52,22 @@ func main() {
 }
 
 func execute() *cobra.Command {
+	versionCmd := &cobra.Command{
+		Use:     "version",
+		Aliases: []string{"ver"},
+		Short:   "Print the version of your resto binary.",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("resto version " + version)
+		},
+	}
+
+	// 判断是否使用 sudo 权限或者 root 用户
+	if _, status := tools.IsRootUser(); !status {
+		log.Fatalln("Run dp-build requires root or sudo")
+		return nil
+	}
+	tools.CheckDpBuildDot()
+
 	// rootCmd represents the base command when called without any subcommands
 	var rootCmd = &cobra.Command{
 		Use:   "dp-build <subcommand> [flags]",
@@ -67,15 +76,6 @@ func execute() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			layout.DpBuildLayout()
 			return nil
-		},
-	}
-
-	versionCmd := &cobra.Command{
-		Use:     "version",
-		Aliases: []string{"ver"},
-		Short:   "Print the version of your resto binary.",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("resto version " + version)
 		},
 	}
 
