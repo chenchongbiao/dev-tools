@@ -80,41 +80,41 @@ func CommandExecutor(cmd string) (<-chan string, <-chan string) {
 }
 
 // 从 chan 中打印命令过程的输出，根据传入的参数执行输出到命令行或者 tview.TextView
-func CommandOutput(outCh <-chan string, errCh <-chan string, app *tview.Application, textView *tview.TextView) {
+func CommandOutput(outCh <-chan string, errCh <-chan string, textView *tview.TextView) {
 	if outCh == nil && errCh == nil {
 		return
 	}
 
-	for {
-		select {
-		case out, ok := <-outCh:
-			if !ok {
-				outCh = nil
-			} else {
-				if app != nil {
-					textView.SetText(textView.GetText(false) + out + "\n")
-					app.Draw()
+	go func() {
+		for {
+			select {
+			case out, ok := <-outCh:
+				if !ok {
+					outCh = nil
 				} else {
-					log.Println(out)
+					if textView != nil {
+						textView.SetText(textView.GetText(false) + out + "\n")
+					} else {
+						log.Println(out)
+					}
+				}
+			case err, ok := <-errCh:
+				if !ok {
+					errCh = nil
+				} else {
+					if textView != nil {
+						textView.SetText(textView.GetText(false) + err + "\n")
+					} else {
+						log.Println(err)
+					}
 				}
 			}
-		case err, ok := <-errCh:
-			if !ok {
-				errCh = nil
-			} else {
-				if app != nil {
-					textView.SetText(textView.GetText(false) + err + "\n")
-					app.Draw()
-				} else {
-					log.Println(err)
-				}
-			}
-		}
 
-		if outCh == nil && errCh == nil {
-			break
+			if outCh == nil && errCh == nil {
+				break
+			}
 		}
-	}
+	}()
 }
 
 // 运行命令，获取命令执行结果
