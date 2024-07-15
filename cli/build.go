@@ -16,7 +16,7 @@ func BuildCMD() *cobra.Command {
 		Long:  `build rootfs、WSL、board.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				tools.FatalLog("no args, please choose target: [rootfs, board, Docker, WSL]", nil, nil, nil)
+				tools.FatalLog("no args, please choose target: [rootfs, board]", nil, nil, nil)
 			}
 			opts.Target = args[0]
 			return run.RunBuild(&opts, nil)
@@ -30,7 +30,8 @@ func BuildCMD() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.Sources, "sources", "s", "", "Apt sources")
 	cmd.Flags().StringVarP(&opts.Packages, "packages", "p", "", "include package")
 	cmd.Flags().StringVarP(&opts.Device, "device", "d", "", "device type")
-	cmd.Flags().StringVarP(&opts.ImageSize, "image-size", "i", "", "fixed image size")
+	cmd.Flags().StringVar(&opts.ImageSize, "image-size", "", "fixed image size")
+	cmd.Flags().StringVar(&opts.BaseType, "base-type", "minimal", "base rootfs type (minimal, desktop)")
 
 	return cmd
 }

@@ -1,6 +1,7 @@
 package rootfs
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,7 +14,7 @@ import (
 
 // 创建新的 rootfs 缓存，并使用 tar 压缩
 func CreateRootfsCache(opts *common.BuildOptions) (<-chan string, <-chan string) {
-	rootfsPath := GetRootfsPath(opts.DistroName, opts.DistroVersion, opts.Arch)
+	rootfsPath := GetRootfsPath(opts.DistroName, opts.DistroVersion, opts.Arch, opts.BaseType)
 	if _, err := os.Stat(rootfsPath); err == nil {
 		tools.PrintLog(fmt.Sprintf("%s is exists", rootfsPath), nil, nil, nil)
 		return nil, nil
@@ -28,11 +29,14 @@ func CreateRootfsCache(opts *common.BuildOptions) (<-chan string, <-chan string)
 	}
 	args = append(args, fmt.Sprintf("--components=%s", opts.Components))
 
-	if opts.Packages == "" {
-		opts.Packages = "apt,apt-utils,sudo,vim,bash,bash-completion,ca-certificates,deepin-keyring,parted,network-manager,systemd,systemd-timesyncd,systemd-resolved,curl,screen,vim,init,ssh,kmod,udev,iputils-ping,polkitd,dbus-daemon,grub-efi-arm64,initramfs-tools,uuid-runtime,dmidecode"
+	if opts.Packages != "" {
+		packageList, _ := GetPackageList(opts.BaseType, opts.Arch, opts.Device)
+		opts.Packages = fmt.Sprintf("%s,%s", opts.Packages, packageList)
+	} else {
+		opts.Packages, _ = GetPackageList(opts.BaseType, opts.Arch, opts.Device)
 	}
-	packages := fmt.Sprintf("\"%s\"", opts.Packages)
-	args = append(args, fmt.Sprintf("--include=%s", packages))
+
+	args = append(args, fmt.Sprintf("--include=%s", fmt.Sprintf("\"%s\"", opts.Packages)))
 	args = append(args, fmt.Sprintf("--architectures=%s", opts.Arch))
 	args = append(args, opts.DistroVersion)
 	args = append(args, rootfsPath)
@@ -40,21 +44,20 @@ func CreateRootfsCache(opts *common.BuildOptions) (<-chan string, <-chan string)
 	sources := fmt.Sprintf("\"%s\"", strings.Replace(opts.Sources, ",", " ", -1))
 	args = append(args, sources)
 
+	tools.PrintLog("create rootfs", nil, nil, opts.TextView)
 	cmd := strings.Join(args, " ")
 	return ios.CommandExecutor(cmd)
 }
 
 // 创建 rootfs 的 tar 文件
-func CreateRootfsTarFile(distroName, distroVersion, arch string) {
-	tarFileName := GetTarFileName(GetRootfsName(distroName, distroVersion, arch))
-	rootfsPath := GetRootfsPath(distroName, distroVersion, arch)
+func CreateRootfsTarFile(opts *common.BuildOptions) {
+	tarFileName := GetTarFileName(GetRootfsName(opts.DistroName, opts.DistroVersion, opts.Arch, opts.BaseType))
+	rootfsPath := GetRootfsPath(opts.DistroName, opts.DistroVersion, opts.Arch, opts.BaseType)
 
 	tarFilePath := GetTarFilePath(tarFileName)
 	if _, err := os.Stat(tarFilePath); err == nil {
-		tools.PrintLog(fmt.Sprintf("%s is exists", tarFilePath), nil, nil, nil)
-		return
+		tools.PrintLog(fmt.Sprintf("%s is exists", tarFilePath), nil, nil, opts.TextView)
 	}
-
 	tools.PrintLog(fmt.Sprintf("create %s", tarFileName), nil, nil, nil)
 
 	ios.Run(fmt.Sprintf(`cd %s && tar zfcp %s --xattrs  --exclude='./dev/*' --exclude='./proc/*' \
@@ -73,12 +76,12 @@ func ExtractRootfs(rootfsName string) {
 	exec.Command("tar", "zxpf", tarFilePath, "--xattrs", "-C", tools.TmpMountPath()).Run()
 }
 
-func GetRootfsName(distroName, distroVersion, arch string) string {
-	return fmt.Sprintf("%s-%s-%s", distroName, distroVersion, arch)
+func GetRootfsName(distroName, distroVersion, arch, baseType string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", distroName, distroVersion, arch, baseType)
 }
 
-func GetRootfsPath(distroName, distroVersion, arch string) string {
-	return fmt.Sprintf("%s/%s", tools.RootfsCachePath(), GetRootfsName(distroName, distroVersion, arch))
+func GetRootfsPath(distroName, distroVersion, arch, baseType string) string {
+	return fmt.Sprintf("%s/%s", tools.RootfsCachePath(), GetRootfsName(distroName, distroVersion, arch, baseType))
 }
 
 func GetTarFileName(rootfsName string) string {
@@ -87,4 +90,31 @@ func GetTarFileName(rootfsName string) string {
 
 func GetTarFilePath(tarFileName string) string {
 	return fmt.Sprintf("%s/%s", tools.RootfsCachePath(), tarFileName)
+}
+
+// 获取软件列表
+func GetPackageList(packageType, arch, device string) (string, error) {
+	file, err := os.Open(tools.GetPackageListPath(packageType, arch, device))
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	var content string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if content != "" {
+			content += ","
+		}
+		cleanLine := strings.Join(strings.FieldsFunc(scanner.Text(), func(r rune) bool {
+			return r == ' ' || r == '\t' || r == '\n'
+		}), "")
+		content += cleanLine
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return content, nil
 }

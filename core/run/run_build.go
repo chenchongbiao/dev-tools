@@ -1,7 +1,9 @@
 package run
 
 import (
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/rivo/tview"
 
@@ -14,9 +16,14 @@ import (
 
 func RunBuild(opts *common.BuildOptions, textView *tview.TextView) error {
 	outCh, errCh := rootfs.CreateRootfsCache(opts)
+	rootfsPath := rootfs.GetRootfsPath(opts.DistroName, opts.DistroVersion, opts.Arch, opts.BaseType)
 	tools.PrintLog("", outCh, errCh, textView)
+	if _, err := os.Stat(rootfsPath); err != nil {
+		tools.PrintLog(fmt.Sprintf("create %s error", rootfsPath), nil, nil, textView)
+		return err
+	}
 
-	rootfs.CreateRootfsTarFile(opts.DistroName, opts.DistroVersion, opts.Arch)
+	rootfs.CreateRootfsTarFile(opts)
 
 	if opts.Target == "board" {
 		if opts.Device == "" {
@@ -27,7 +34,7 @@ func RunBuild(opts *common.BuildOptions, textView *tview.TextView) error {
 			opts.ImageSize = "0"
 		}
 
-		image.CreateImage(opts, textView)
+		image.CreateImage(opts)
 		chroot.MountChroot()
 		chroot.UnMountChroot()
 	}
