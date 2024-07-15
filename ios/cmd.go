@@ -85,28 +85,42 @@ func CommandOutput(outCh <-chan string, errCh <-chan string, textView *tview.Tex
 		return
 	}
 
-	go func() {
+	if textView != nil {
+		go func() {
+			for {
+				select {
+				case out, ok := <-outCh:
+					if !ok {
+						outCh = nil
+					} else {
+						textView.SetText(textView.GetText(false) + out + "\n")
+					}
+				case err, ok := <-errCh:
+					if !ok {
+						errCh = nil
+					} else {
+						textView.SetText(textView.GetText(false) + err + "\n")
+					}
+				}
+				if outCh == nil && errCh == nil {
+					break
+				}
+			}
+		}()
+	} else {
 		for {
 			select {
 			case out, ok := <-outCh:
 				if !ok {
 					outCh = nil
 				} else {
-					if textView != nil {
-						textView.SetText(textView.GetText(false) + out + "\n")
-					} else {
-						log.Println(out)
-					}
+					log.Println(out)
 				}
 			case err, ok := <-errCh:
 				if !ok {
 					errCh = nil
 				} else {
-					if textView != nil {
-						textView.SetText(textView.GetText(false) + err + "\n")
-					} else {
-						log.Println(err)
-					}
+					log.Println(err)
 				}
 			}
 
@@ -114,7 +128,7 @@ func CommandOutput(outCh <-chan string, errCh <-chan string, textView *tview.Tex
 				break
 			}
 		}
-	}()
+	}
 }
 
 // 运行命令，获取命令执行结果
