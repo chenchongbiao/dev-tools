@@ -31,8 +31,12 @@ func CheckDpBuildDot() {
 
 	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
 		os.MkdirAll(cachePath, 0755)
-		os.Mkdir(rootfsCachePath, 0755)
 		ModifyFileOwner(cachePath, true)
+	}
+
+	if _, err := os.Stat(rootfsCachePath); os.IsNotExist(err) {
+		os.Mkdir(rootfsCachePath, 0755)
+		ModifyFileOwner(rootfsCachePath, true)
 	}
 
 	if _, err := os.Stat(tmpMountPath); os.IsNotExist(err) {
@@ -70,4 +74,9 @@ func OutputImagePath() string {
 // 返回设备存放配置的路径
 func GetDeviceConfigPath(arch, device string) string {
 	return path.Join(pwd, "config", arch, device)
+}
+
+// 获取预装包列表的路径
+func GetPackageListPath(packageType, arch, device string) string {
+	return path.Join(GetDeviceConfigPath(arch, device), path.Join("package", packageType))
 }
