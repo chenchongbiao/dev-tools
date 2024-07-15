@@ -36,7 +36,7 @@ func (page *DpBuildConfigPage) initUI() {
 
 	page.form.AddDropDown("Distro Version", []string{"beige"}, 0, nil)
 	page.form.AddDropDown("Arch", []string{"amd64", "arm64", "riscv64", "loong64", "i386"}, 0, nil)
-	page.form.AddDropDown("Build Target", []string{"rootfs", "WSL", "board"}, 0, func(option string, optionIndex int) {
+	page.form.AddDropDown("Build Target", []string{"rootfs", "board"}, 0, func(option string, optionIndex int) {
 
 		// if option == "rootfs" {
 
@@ -44,7 +44,6 @@ func (page *DpBuildConfigPage) initUI() {
 	})
 
 	page.form.AddButton("build", func() {
-
 	})
 
 	page.results.SetBorder(true)

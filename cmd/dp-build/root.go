@@ -10,9 +10,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/chenchongbiao/cli"
-	"github.com/chenchongbiao/core/layout"
-	"github.com/chenchongbiao/tools"
+	"github.com/chenchongbiao/dev-tools/cli"
+	"github.com/chenchongbiao/dev-tools/core/layout"
+	"github.com/chenchongbiao/dev-tools/tools"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/spf13/cobra"

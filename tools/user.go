@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/chenchongbiao/ios"
+	"github.com/chenchongbiao/dev-tools/ios"
 )
 
 var (

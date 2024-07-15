@@ -1,4 +1,4 @@
-module github.com/chenchongbiao
+module github.com/chenchongbiao/dev-tools
 
 go 1.20
 

@@ -1,13 +1,9 @@
 package cli
 
 import (
-	"log"
-
-	"github.com/chenchongbiao/common"
-	"github.com/chenchongbiao/core/image"
-	"github.com/chenchongbiao/core/rootfs"
-	"github.com/chenchongbiao/ios"
-	"github.com/rivo/tview"
+	"github.com/chenchongbiao/dev-tools/common"
+	"github.com/chenchongbiao/dev-tools/core/run"
+	"github.com/chenchongbiao/dev-tools/tools"
 	"github.com/spf13/cobra"
 )
 
@@ -20,10 +16,10 @@ func BuildCMD() *cobra.Command {
 		Long:  `build rootfs、WSL、board.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				log.Fatalln("no args, please choose target: [rootfs, board, Docker, WSL]")
+				tools.FatalLog("no args, please choose target: [rootfs, board, Docker, WSL]", nil, nil, nil)
 			}
 			opts.Target = args[0]
-			return RunBuild(&opts, nil, nil)
+			return run.RunBuild(&opts, nil)
 		},
 	}
 
@@ -37,26 +33,4 @@ func BuildCMD() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.ImageSize, "image-size", "i", "", "fixed image size")
 
 	return cmd
-}
-
-func RunBuild(opts *common.BuildOptions, app *tview.Application, textView *tview.TextView) error {
-	outCh, errCh := rootfs.CreateRootfsCache(opts)
-	ios.CommandOutput(outCh, errCh, app, textView)
-
-	rootfs.CreateRootfsTarFile(opts.DistroName, opts.DistroVersion, opts.Arch)
-
-	if opts.Target == "board" {
-		if opts.Device == "" {
-			log.Fatalf("not set device, such as: -d qemu")
-		}
-
-		if opts.ImageSize == "" {
-			opts.ImageSize = "0"
-		}
-
-		image.CreateImage(opts)
-		// chroot.MountChroot()
-		// chroot.UnMountChroot()
-	}
-	return nil
 }

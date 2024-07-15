@@ -2,12 +2,11 @@ package chroot
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
 	"time"
 
-	"github.com/chenchongbiao/ios"
-	"github.com/chenchongbiao/tools"
+	"github.com/chenchongbiao/dev-tools/ios"
+	"github.com/chenchongbiao/dev-tools/tools"
 )
 
 func MountChroot() {
@@ -24,12 +23,12 @@ func UnMountChroot() {
 		if err != nil {
 			// 检查错误是否是因为没有找到匹配项
 			if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() == 1 {
-				log.Println("No matches mounts; exiting loop.")
+				tools.PrintLog("No matches mounts; exiting loop.", nil, nil, nil)
 				break // 没有找到匹配项，跳出循环
 			}
 		}
 
-		log.Println("Match found; continuing operations...")
+		tools.PrintLog("Match found; continuing operations...", nil, nil, nil)
 		ios.Run(fmt.Sprintf(`umount --recursive %s/dev || true`, tools.TmpMountPath()))
 		ios.Run(fmt.Sprintf(`umount %s/proc || true`, tools.TmpMountPath()))
 		ios.Run(fmt.Sprintf(`umount %s/sys || true`, tools.TmpMountPath()))

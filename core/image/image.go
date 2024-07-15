@@ -2,26 +2,26 @@ package image
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"path"
 	"strconv"
 
-	"github.com/chenchongbiao/common"
-	"github.com/chenchongbiao/core/chroot"
-	"github.com/chenchongbiao/core/rootfs"
-	"github.com/chenchongbiao/ios"
-	"github.com/chenchongbiao/tools"
+	"github.com/chenchongbiao/dev-tools/common"
+	"github.com/chenchongbiao/dev-tools/core/chroot"
+	"github.com/chenchongbiao/dev-tools/core/rootfs"
+	"github.com/chenchongbiao/dev-tools/ios"
+	"github.com/chenchongbiao/dev-tools/tools"
+	"github.com/rivo/tview"
 )
 
-func CreateImage(opts *common.BuildOptions) {
+func CreateImage(opts *common.BuildOptions, textView *tview.TextView) {
 	rootfsPath := rootfs.GetRootfsPath(opts.DistroName, opts.DistroVersion, opts.Arch)
 	// imagePath := fmt.Sprintf("%s/%s", tools.OutputImagePath(), imageName)
 	rootfsSize := ios.RunCommandOutResult(fmt.Sprintf(`du --apparent-size -sm "%s" | cut -f1`, rootfsPath))
 	if rootfsSize == "" {
-		log.Fatalf("Error executing du --apparent-size")
+		tools.FatalLog("Error executing du --apparent-size", nil, nil, nil)
 	}
-	log.Printf("Current rootfs size: %s MiB\n", rootfsSize)
+	tools.PrintLog(fmt.Sprintf("Current rootfs size: %s MiB\n", rootfsSize), nil, nil, textView)
 
 	fixedImageSizeUint, _ := strconv.ParseUint(opts.ImageSize, 10, 64)
 	rootfsSizeUint, _ := strconv.ParseUint(rootfsSize, 10, 64)
@@ -43,7 +43,7 @@ func CreateImage(opts *common.BuildOptions) {
 
 	imagePath := GetImagePath(opts.DistroName, opts.DistroVersion, opts.Device, opts.Arch)
 
-	log.Printf("Creating image: %s, sdsize %d MiB", imagePath, sdSize)
+	tools.PrintLog(fmt.Sprintf("Creating image: %s, sdsize %d MiB", imagePath, sdSize), nil, nil, textView)
 	ios.Run(fmt.Sprintf(`dd if=/dev/zero of=%s bs=1M count=%d`, imagePath, sdSize))
 
 	// 分区顺序
@@ -57,12 +57,12 @@ func CreateImage(opts *common.BuildOptions) {
 		rootPart = 1
 	}
 
-	log.Println("create partition table")
+	tools.PrintLog("create partition table", nil, nil, textView)
 
 	ios.Run(fmt.Sprintf(`(echo n; echo %d; echo ""; echo +%dM;  echo ef00; echo n; echo %d; echo ""; echo ""; echo ""; echo w; echo y) | gdisk %s`, uefiPart, uefiSize, rootPart, imagePath))
 
 	loop := ios.RunCommandOutResult(fmt.Sprintf(`losetup --partscan --find --show %s`, imagePath))
-	log.Printf("Allocated loop device %s", loop)
+	tools.PrintLog(fmt.Sprintf("Allocated loop device %s", loop), nil, nil, textView)
 
 	deviceConfigPath := tools.GetDeviceConfigPath(opts.Arch, opts.Device)
 	// 设置这些文件系统的标签。dosfslabel 是用来设置vfat（FAT）文件系统的标签，e2label 是用来设置ext2/ext3/ext4文件系统的标签
@@ -75,7 +75,7 @@ func CreateImage(opts *common.BuildOptions) {
 	ios.Run(fmt.Sprintf("e2label %sp%d", loop, rootPart))
 
 	// 解压之前先做一次卸载目录
-	log.Println("umount chroot")
+	tools.PrintLog("umount chroot", nil, nil, textView)
 	chroot.UnMountChroot()
 
 	// 挂载设备
@@ -87,31 +87,32 @@ func CreateImage(opts *common.BuildOptions) {
 
 	ios.Run(fmt.Sprintf("mkdir %s/boot/efi", tools.TmpMountPath()))
 
-	log.Printf("copy grup to %s/boot", tools.TmpMountPath())
+	tools.PrintLog(fmt.Sprintf("copy grup to %s/boot", tools.TmpMountPath()), nil, nil, textView)
 	ios.Run(fmt.Sprintf("cp -r %s/grub/ %s/boot", deviceConfigPath, tools.TmpMountPath()))
 
-	log.Printf("copy kernel to %s/boot", tools.TmpMountPath())
+	tools.PrintLog(fmt.Sprintf("copy kernel to %s/boot", tools.TmpMountPath()), nil, nil, textView)
+	tools.PrintLog(fmt.Sprintf("copy kernel to %s/boot", tools.TmpMountPath()), nil, nil, textView)
 	ios.Run(fmt.Sprintf("cp -r %s/kernel/* %s/boot", deviceConfigPath, tools.TmpMountPath()))
 	ios.Run(fmt.Sprintf("mkdir %s/lib/modules", tools.TmpMountPath()))
 	ios.Run(fmt.Sprintf("cp -r %s/modules/* %s/lib/modules", deviceConfigPath, tools.TmpMountPath()))
 
 	if opts.Arch == "arm64" && opts.Device == "qemu" {
-		log.Printf("copy kernel to %s/etc/modules", tools.TmpMountPath())
+		tools.PrintLog(fmt.Sprintf("copy kernel to %s/etc/modules", tools.TmpMountPath()), nil, nil, textView)
 		ios.Run(fmt.Sprintf("echo \"fat\" >> %s/etc/modules", tools.TmpMountPath()))
 		ios.Run(fmt.Sprintf("echo \"vfat\" >> %s/etc/modules", tools.TmpMountPath()))
 	}
 
-	log.Println("generate /etc/fstab")
+	tools.PrintLog("generate /etc/fstab", nil, nil, textView)
 	rootPartUuid := ios.RunCommandOutResult(fmt.Sprintf("blkid -s UUID -o value %sp%d", loop, rootPart))
-	log.Printf("root uuid: %s", rootPartUuid)
+	tools.PrintLog(fmt.Sprintf("root uuid: %s", rootPartUuid), nil, nil, textView)
 	ios.Run(fmt.Sprintf("echo \"UUID=%s / ext4 rw,discard,errors=remount-ro,x-systemd.growfs 0 1\" >> %s/etc/fstab", rootPartUuid, tools.TmpMountPath()))
 
 	uefiPartUuid := ios.RunCommandOutResult(fmt.Sprintf("blkid -s UUID -o value %sp%d", loop, uefiPart))
-	log.Printf("efi uuid: %s", uefiPartUuid)
+	tools.PrintLog(fmt.Sprintf("efi uuid: %s", uefiPartUuid), nil, nil, textView)
 	ios.Run(fmt.Sprintf("echo \"UUID=%s /boot/efi vfat defaults 0 2\" >> %s/etc/fstab", uefiPartUuid, tools.TmpMountPath()))
 
 	ios.Run(fmt.Sprintf("sed -i \"s/root_uuid/%s/g\" %s/boot/grub/grub.cfg", rootPartUuid, tools.TmpMountPath()))
-	log.Printf("set hostname")
+	tools.PrintLog("set hostname", nil, nil, textView)
 	ios.Run(fmt.Sprintf("echo \"deepin-%s-%s\" | tee %s/etc/hostname", opts.Arch, opts.Device, tools.TmpMountPath()))
 
 	chroot.RunCommandByChoot(rootfsPath, "useradd  -s /bin/bash -m -g users deepin")

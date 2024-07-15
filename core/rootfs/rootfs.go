@@ -2,21 +2,20 @@ package rootfs
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
 
-	"github.com/chenchongbiao/common"
-	"github.com/chenchongbiao/ios"
-	"github.com/chenchongbiao/tools"
+	"github.com/chenchongbiao/dev-tools/common"
+	"github.com/chenchongbiao/dev-tools/ios"
+	"github.com/chenchongbiao/dev-tools/tools"
 )
 
 // 创建新的 rootfs 缓存，并使用 tar 压缩
 func CreateRootfsCache(opts *common.BuildOptions) (<-chan string, <-chan string) {
 	rootfsPath := GetRootfsPath(opts.DistroName, opts.DistroVersion, opts.Arch)
 	if _, err := os.Stat(rootfsPath); err == nil {
-		log.Printf("%s is exists", rootfsPath)
+		tools.PrintLog(fmt.Sprintf("%s is exists", rootfsPath), nil, nil, nil)
 		return nil, nil
 	}
 
@@ -52,11 +51,11 @@ func CreateRootfsTarFile(distroName, distroVersion, arch string) {
 
 	tarFilePath := GetTarFilePath(tarFileName)
 	if _, err := os.Stat(tarFilePath); err == nil {
-		log.Printf("%s is exists", tarFilePath)
+		tools.PrintLog(fmt.Sprintf("%s is exists", tarFilePath), nil, nil, nil)
 		return
 	}
 
-	log.Printf("create %s", tarFileName)
+	tools.PrintLog(fmt.Sprintf("create %s", tarFileName), nil, nil, nil)
 
 	ios.Run(fmt.Sprintf(`cd %s && tar zfcp %s --xattrs  --exclude='./dev/*' --exclude='./proc/*' \
 	--exclude='./run/*' --exclude='./tmp/*' --exclude='./sys/*' --exclude='./home/*' --exclude='./root/*' -C %s .`,
