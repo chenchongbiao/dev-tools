@@ -1,0 +1,2 @@
+linux-firmware_1.202.7_all.deb 与radxa-firmware提供的/lib/firmware/rtl8852bu_config和/lib/firmware/rtl8852bu_fw冲突，删除了，deepin自带的，重新压包
+u-boot-menu_4.2.2_all 不要安装 deepin 自带的 u-boot-menu 安装 radxa 提供的
