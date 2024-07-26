@@ -7,7 +7,7 @@ import (
 
 var (
 	pwd, _              = os.Getwd()
-	dpBuildDot          = path.Join(os.Getenv("HOME"), ".dp-build")
+	dpBuildDot          = path.Join(GetUserHome(), ".dp-build")
 	dpBuildSettingsFile = path.Join(dpBuildDot, "settings.json")
 	cachePath           = path.Join(pwd, "cache")
 	rootfsCachePath     = path.Join(cachePath, "rootfs")
