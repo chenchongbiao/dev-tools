@@ -9,11 +9,11 @@ import (
 
 // 判断是cli还是tui，输出日志
 func PrintLog(logInfo string, outCh <-chan string, errCh <-chan string, textView *tview.TextView) {
-	if outCh != nil && errCh != nil {
+	if outCh != nil || errCh != nil {
 		ios.CommandOutput(outCh, errCh, textView)
 	}
 
-	if logInfo != "" {
+	if textView == nil && logInfo != "" {
 		log.Println(logInfo)
 	}
 
@@ -24,11 +24,11 @@ func PrintLog(logInfo string, outCh <-chan string, errCh <-chan string, textView
 
 // 判断是cli还是tui，输出 Fatal 日志
 func FatalLog(logInfo string, outCh <-chan string, errCh <-chan string, textView *tview.TextView) {
-	if outCh != nil && errCh != nil {
+	if outCh != nil || errCh != nil {
 		ios.CommandOutput(outCh, errCh, textView)
 	}
 
-	if logInfo != "" {
+	if textView == nil && logInfo != "" {
 		log.Fatalf(logInfo)
 	}
 
