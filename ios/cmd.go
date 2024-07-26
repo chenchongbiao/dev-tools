@@ -13,7 +13,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-// 直接传入格式化后命令给sh执行
+// 直接传入格式化后命令给sh执行，返回 error
 func Run(cmd string) error {
 	return exec.Command("sh", "-c", cmd).Run()
 }

@@ -1,15 +1,15 @@
 package rootfs
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
-	"github.com/chenchongbiao/dev-tools/common"
+	"github.com/chenchongbiao/dev-tools/core/common"
 	"github.com/chenchongbiao/dev-tools/ios"
 	"github.com/chenchongbiao/dev-tools/tools"
+
+	"github.com/tidwall/gjson"
 )
 
 // 创建新的 rootfs 缓存，并使用 tar 压缩
@@ -30,10 +30,10 @@ func CreateRootfsCache(opts *common.BuildOptions) (<-chan string, <-chan string)
 	args = append(args, fmt.Sprintf("--components=%s", opts.Components))
 
 	if opts.Packages != "" {
-		packageList, _ := GetPackageList(opts.BaseType, opts.Arch, opts.Device)
+		packageList, _ := GetPackageList(opts.BaseType, opts.Arch, opts.Target)
 		opts.Packages = fmt.Sprintf("%s,%s", opts.Packages, packageList)
 	} else {
-		opts.Packages, _ = GetPackageList(opts.BaseType, opts.Arch, opts.Device)
+		opts.Packages, _ = GetPackageList(opts.BaseType, opts.Arch, opts.Target)
 	}
 
 	args = append(args, fmt.Sprintf("--include=%s", fmt.Sprintf("\"%s\"", opts.Packages)))
@@ -57,6 +57,7 @@ func CreateRootfsTarFile(opts *common.BuildOptions) {
 	tarFilePath := GetTarFilePath(tarFileName)
 	if _, err := os.Stat(tarFilePath); err == nil {
 		tools.PrintLog(fmt.Sprintf("%s is exists", tarFilePath), nil, nil, opts.TextView)
+		return
 	}
 	tools.PrintLog(fmt.Sprintf("create %s", tarFileName), nil, nil, nil)
 
@@ -72,8 +73,8 @@ func ExtractRootfs(rootfsName string) {
 	ios.Run(fmt.Sprintf("rm -rf %s/*", tools.TmpMountPath()))
 	tarFileName := GetTarFileName(rootfsName)
 	tarFilePath := GetTarFilePath(tarFileName)
-	// ios.Run(fmt.Sprintf("tar zxpf %s --xattrs -C %s", tarFilePath, tools.TmpMountPath()))
-	exec.Command("tar", "zxpf", tarFilePath, "--xattrs", "-C", tools.TmpMountPath()).Run()
+	ios.Run(fmt.Sprintf("tar zxpf %s --xattrs -C %s", tarFilePath, tools.TmpMountPath()))
+	// exec.Command("tar", "zxpf", tarFilePath, "--xattrs", "-C", tools.TmpMountPath()).Run()
 }
 
 func GetRootfsName(distroName, distroVersion, arch, baseType string) string {
@@ -92,29 +93,17 @@ func GetTarFilePath(tarFileName string) string {
 	return fmt.Sprintf("%s/%s", tools.RootfsCachePath(), tarFileName)
 }
 
-// 获取软件列表
-func GetPackageList(packageType, arch, device string) (string, error) {
-	file, err := os.Open(tools.GetPackageListPath(packageType, arch, device))
-	if err != nil {
-		return "", err
+// 获取软件列表，从 ~/.dp-builder/settings.json 读取 rootfs 的列表
+func GetPackageList(baseType, arch, target string) (string, error) {
+	minimalPackages := gjson.Get(tools.SettingsContent(), "rootfs.minimal").Str
+	if target != "rootfs" {
+		minimalPackages = minimalPackages + "," + gjson.Get(tools.SettingsContent(), target+"."+baseType).Str
 	}
-	defer file.Close()
-
-	var content string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		if content != "" {
-			content += ","
-		}
-		cleanLine := strings.Join(strings.FieldsFunc(scanner.Text(), func(r rune) bool {
-			return r == ' ' || r == '\t' || r == '\n'
-		}), "")
-		content += cleanLine
+	if baseType == "desktop" {
+		desktopPackges := gjson.Get(tools.SettingsContent(), target+"."+baseType).Str
+		desktopPackges = minimalPackages + "," + desktopPackges
+		return desktopPackges, nil
 	}
 
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-
-	return content, nil
+	return minimalPackages, nil
 }

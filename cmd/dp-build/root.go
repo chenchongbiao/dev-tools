@@ -68,16 +68,17 @@ func execute() *cobra.Command {
 	}
 	tools.CheckDpBuildDot()
 
-	// rootCmd represents the base command when called without any subcommands
 	var rootCmd = &cobra.Command{
 		Use:   "dp-build <subcommand> [flags]",
-		Short: "desc",
-		// SilenceErrors: true, // 不使用错误处理的默认行为
+		Short: "dp-builder is used to create a universal root filesystem and img image files",
+		// 不使用错误处理的默认行为
 		RunE: func(cmd *cobra.Command, args []string) error {
 			layout.DpBuildLayout()
 			return nil
 		},
 	}
+
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
 	rootCmd.AddCommand(
 		cli.BuildCMD(),

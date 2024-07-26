@@ -7,6 +7,11 @@ import (
 
 	"github.com/chenchongbiao/dev-tools/ios"
 	"github.com/chenchongbiao/dev-tools/tools"
+	"github.com/rivo/tview"
+)
+
+var (
+	textView *tview.TextView
 )
 
 func MountChroot() {
@@ -34,6 +39,8 @@ func UnMountChroot() {
 		ios.Run(fmt.Sprintf(`umount %s/sys || true`, tools.TmpMountPath()))
 		ios.Run(fmt.Sprintf(`umount %s/tmp || true`, tools.TmpMountPath()))
 		ios.Run(fmt.Sprintf(`umount %s/var/tmp || true`, tools.TmpMountPath()))
+		// -l 懒卸载，避免有程序使用 ROOTFS 还没退出
+		ios.Run(fmt.Sprintf("umount -l %s", tools.TmpMountPath()))
 		// 添加延时，避免循环过快导致系统资源紧张
 		time.Sleep(1 * time.Second)
 	}
@@ -41,5 +48,7 @@ func UnMountChroot() {
 
 // 在 rootfs 中执行命令
 func RunCommandByChoot(rootfsPath, cmd string) {
-	ios.Run(fmt.Sprintf("chroot %s /usr/bin/env bash -e -o pipefail -c \"%s\"", tools.TmpMountPath(), cmd))
+	tools.PrintLog(fmt.Sprintf("---CMD: %s", fmt.Sprintf("chroot %s /usr/bin/env bash -e -o pipefail -c \"%s\"", rootfsPath, cmd)), nil, nil, textView)
+	outCh, errCh := ios.CommandExecutor(fmt.Sprintf("chroot %s /usr/bin/env bash -e -o pipefail -c \"%s\"", rootfsPath, cmd))
+	tools.PrintLog("", outCh, errCh, textView)
 }

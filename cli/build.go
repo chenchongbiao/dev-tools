@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/chenchongbiao/dev-tools/common"
+	"github.com/chenchongbiao/dev-tools/core/common"
 	"github.com/chenchongbiao/dev-tools/core/run"
 	"github.com/chenchongbiao/dev-tools/tools"
 	"github.com/spf13/cobra"

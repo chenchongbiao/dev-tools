@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"github.com/chenchongbiao/dev-tools/tools"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -44,6 +45,11 @@ func (page *DpBuildConfigPage) initUI() {
 	})
 
 	page.form.AddButton("build", func() {
+		// out, err := ios.CommandExecutor("ping1 www.baidu.com")
+		// ios.CommandOutput(out, err, page.results)
+		tools.PrintLog("00000000000", nil, nil, page.results)
+		// page.results.SetText(page.results.GetText(false) + "1111111111\n")
+
 	})
 
 	page.results.SetBorder(true)
