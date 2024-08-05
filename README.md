@@ -6,10 +6,16 @@
 
 ## 构建根文件系统
 
-## deepin
-
 ```bash
 sudo ./bin/dp-build build rootfs -n="deepin" -v="beige" -c="main,commercial,community" -a="arm64" -s="deb https://community-packages.deepin.com/beige/ beige main commercial community"
+```
+
+## 构建根文件系统的镜像
+
+### 小米平板5
+
+```bash
+sudo ./bin/dp-build build rootfsimg -n="deepin" -v="beige" -c="main,commercial,community" -a="arm64" -s="deb https://community-packages.deepin.com/beige/ beige main commercial community" -d "mipad5"
 ```
 
 ## 构建开发板
