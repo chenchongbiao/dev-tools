@@ -50,5 +50,17 @@ func RunBuild(opts *common.BuildOptions, textView *tview.TextView) error {
 
 		image.CreateImage(opts)
 	}
+
+	if opts.Target == "rootfsimg" {
+		if opts.Device == "" {
+			log.Fatalf("not set device, such as: -d qemu")
+		}
+
+		if opts.ImageSize == "" {
+			opts.ImageSize = "0"
+		}
+
+		image.CreateOnlyRootfsImage(opts)
+	}
 	return nil
 }
