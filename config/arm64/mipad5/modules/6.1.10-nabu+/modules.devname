@@ -1,0 +1,5 @@
+# Device nodes to trigger on-demand module loading.
+fuse fuse c10:229
+cuse cuse c10:203
+snd_seq snd/seq c116:1
+rfkill rfkill c10:242

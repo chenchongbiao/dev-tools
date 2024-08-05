@@ -74,7 +74,10 @@ func CreateImage(opts *common.BuildOptions) {
 		echo w; echo y) | gdisk %s`, configPart, configSize, uefiPart, uefiSize, uefiPart, rootPart, rootPart, imagePath))
 	} else {
 		ios.Run(fmt.Sprintf(`(echo n; echo %d; echo ""; echo +%dM;  echo ef00; \
-		echo n; echo %d; echo ""; echo ""; echo ""; echo w; echo y) | gdisk %s`, uefiPart, uefiSize, rootPart, imagePath))
+		echo c; echo efi; \
+		echo n; echo %d; echo ""; echo ""; echo ""; \
+		echo c; echo %d; echo rootfs; \
+		echo w; echo y) | gdisk %s`, uefiPart, uefiSize, rootPart, rootPart, imagePath))
 	}
 
 	loop := ios.RunCommandOutResult(fmt.Sprintf(`losetup --partscan --find --show %s`, imagePath))
@@ -122,12 +125,9 @@ func CreateImage(opts *common.BuildOptions) {
 	tools.PrintLog(fmt.Sprintf("copy sources.list.d to %s/etc/apt/sources.list.d", tools.TmpMountPath()), nil, nil, opts.TextView)
 	ios.Run(fmt.Sprintf("cp -r %s/sources.list.d/* %s/etc/apt/sources.list.d", deviceConfigPath, tools.TmpMountPath()))
 
-	ios.Run(fmt.Sprintf("rm %s/etc/resolv.conf", tools.TmpMountPath()))
-	ios.Run(fmt.Sprintf("cp /etc/resolv.conf %s/etc/", tools.TmpMountPath()))
-
 	if opts.Arch == "arm64" {
 		if opts.Device == "qemu" {
-			tools.PrintLog(fmt.Sprintf("copy kernel to %s/etc/modules", tools.TmpMountPath()), nil, nil, opts.TextView)
+			tools.PrintLog(fmt.Sprintf("add fat to %s/etc/modules", tools.TmpMountPath()), nil, nil, opts.TextView)
 			ios.Run(fmt.Sprintf("echo \"fat\" >> %s/etc/modules", tools.TmpMountPath()))
 			ios.Run(fmt.Sprintf("echo \"vfat\" >> %s/etc/modules", tools.TmpMountPath()))
 		}
@@ -171,6 +171,7 @@ func CreateImage(opts *common.BuildOptions) {
 	tools.PrintLog(fmt.Sprintf("efi uuid: %s", uefiPartUuid), nil, nil, opts.TextView)
 	ios.Run(fmt.Sprintf("echo \"UUID=%s /boot/efi vfat defaults,x-systemd.automount 0 2\" >> %s/etc/fstab", uefiPartUuid, tools.TmpMountPath()))
 
+	ios.Run(fmt.Sprintf("sed -i \"s/efi_uuid/%s/g\" %s/boot/grub/grub.cfg", uefiPartUuid, tools.TmpMountPath()))
 	ios.Run(fmt.Sprintf("sed -i \"s/root_uuid/%s/g\" %s/boot/grub/grub.cfg", rootPartUuid, tools.TmpMountPath()))
 
 	ios.Run(fmt.Sprintf("sed -i \"s/root_uuid/%s/g\" %s/boot/efi/EFI/boot/grub.cfg", rootPartUuid, tools.TmpMountPath()))
@@ -181,14 +182,113 @@ func CreateImage(opts *common.BuildOptions) {
 	tools.PrintLog("update-initramfs -u", nil, nil, opts.TextView)
 	chroot.RunCommandByChoot(tools.TmpMountPath(), "update-initramfs -u")
 
-	chroot.RunCommandByChoot(tools.TmpMountPath(), "useradd  -s /bin/bash -m -g users deepin")
-	chroot.RunCommandByChoot(tools.TmpMountPath(), "usermod -a -G sudo deepin")
-	chroot.RunCommandByChoot(tools.TmpMountPath(), "echo root:deepin | chpasswd")
-	chroot.RunCommandByChoot(tools.TmpMountPath(), "echo deepin:deepin | chpasswd")
+	rootfs.ConfigureUser()
 
 	chroot.UnMountChroot()
 	ios.Run(fmt.Sprintf("losetup -D /dev/%s", loop))
+
+	fixImageFile(imagePath)
+
 	tools.ModifyFileOwner(imagePath, false)
+}
+
+// 只创建包含根文件系统的镜像，不做分区
+func CreateOnlyRootfsImage(opts *common.BuildOptions) {
+	rootfsPath := rootfs.GetRootfsPath(opts.DistroName, opts.DistroVersion, opts.Arch, opts.BaseType)
+	rootfsSize := ios.RunCommandOutResult(fmt.Sprintf(`du --apparent-size -sm "%s" | cut -f1`, rootfsPath))
+	if rootfsSize == "" {
+		tools.FatalLog("Error executing du --apparent-size", nil, nil, nil)
+	}
+	tools.PrintLog(fmt.Sprintf("Current rootfs size: %s MiB", rootfsSize), nil, nil, opts.TextView)
+
+	fixedImageSizeUint, _ := strconv.ParseUint(opts.ImageSize, 10, 64)
+	rootfsSizeUint, _ := strconv.ParseUint(rootfsSize, 10, 64)
+
+	extraRootfsSize := 500
+	sdSize := fixedImageSizeUint
+	if fixedImageSizeUint < rootfsSizeUint {
+		fixedImageSizeUint = rootfsSizeUint + uint64(extraRootfsSize)
+		// 计算最终需要生成的镜像大小对齐至4MiB
+		// 再进行扩展，生成镜像的大小
+		if opts.BaseType == "minimal" {
+			sdSize = uint64(math.Ceil(float64(fixedImageSizeUint)*1.3/4) * 4)
+		} else {
+			// 安装桌面, 需要更大的空间
+			sdSize = uint64(math.Ceil(float64(fixedImageSizeUint)*2/4) * 4)
+		}
+	}
+
+	imagePath := GetImagePath(opts.DistroName, opts.DistroVersion, opts.Device, opts.Arch, opts.BaseType)
+
+	tools.PrintLog(fmt.Sprintf("Creating image: %s, sdsize %d MiB", imagePath, sdSize), nil, nil, opts.TextView)
+	ios.Run(fmt.Sprintf(`dd if=/dev/zero of=%s bs=1M count=%d`, imagePath, sdSize))
+
+	ios.Run(fmt.Sprintf("mkfs.ext4 -F -m 0 -L rootfs %s", imagePath))
+
+	// 解压之前先做一次卸载目录
+	tools.PrintLog("umount chroot", nil, nil, opts.TextView)
+	chroot.UnMountChroot()
+
+	loop := ios.RunCommandOutResult(fmt.Sprintf(`losetup --partscan --find --show %s`, imagePath))
+	tools.PrintLog(fmt.Sprintf("Allocated loop device %s", loop), nil, nil, opts.TextView)
+
+	// 挂载设备
+	ios.Run(fmt.Sprintf("mount %s %s", loop, tools.TmpMountPath()))
+
+	deviceConfigPath := tools.GetDeviceConfigPath(opts.Arch, opts.Device)
+
+	rootfsName := rootfs.GetRootfsName(opts.DistroName, opts.DistroVersion, opts.Arch, opts.BaseType)
+	rootfs.ExtractRootfs(rootfsName)
+	chroot.MountChroot()
+
+	if opts.Device == "mipad5" {
+		tools.PrintLog("generate /etc/fstab", nil, nil, opts.TextView)
+		rootfsUuid := ios.RunCommandOutResult(fmt.Sprintf("blkid -s UUID -o value %s", loop))
+		tools.PrintLog(fmt.Sprintf("root uuid: %s", rootfsUuid), nil, nil, opts.TextView)
+		ios.Run(fmt.Sprintf("echo \"UUID=%s / ext4 defaults 0 1\" > %s/etc/fstab", rootfsUuid, tools.TmpMountPath()))
+		ios.Run(fmt.Sprintf("echo \"PARTLABEL=esp /boot/efi vfat umask=0077 0 1\" >> %s/etc/fstab", tools.TmpMountPath()))
+
+		ios.Run(fmt.Sprintf("mkdir %s/boot/efi", tools.TmpMountPath()))
+		tools.PrintLog(fmt.Sprintf("copy efi to %s/boot/efi", tools.TmpMountPath()), nil, nil, opts.TextView)
+		ios.Run(fmt.Sprintf("cp -r %s/EFI/* %s/boot/efi", deviceConfigPath, tools.TmpMountPath()))
+
+		tools.PrintLog(fmt.Sprintf("copy grup to %s/boot", tools.TmpMountPath()), nil, nil, opts.TextView)
+		ios.Run(fmt.Sprintf("cp -r %s/grub/ %s/boot", deviceConfigPath, tools.TmpMountPath()))
+
+		tools.PrintLog(fmt.Sprintf("copy kernel to %s/boot", tools.TmpMountPath()), nil, nil, opts.TextView)
+		ios.Run(fmt.Sprintf("cp -r %s/kernel/* %s/boot", deviceConfigPath, tools.TmpMountPath()))
+		ios.Run(fmt.Sprintf("mkdir %s/lib/modules", tools.TmpMountPath()))
+		ios.Run(fmt.Sprintf("cp -r %s/modules/* %s/lib/modules", deviceConfigPath, tools.TmpMountPath()))
+
+		tools.PrintLog(fmt.Sprintf("copy firmware to %s/lib", tools.TmpMountPath()), nil, nil, opts.TextView)
+		ios.Run(fmt.Sprintf("mkdir %s/lib/firmware", tools.TmpMountPath()))
+		ios.Run(fmt.Sprintf("cp -r %s/firmware/* %s/lib/firmware", deviceConfigPath, tools.TmpMountPath()))
+
+		tools.PrintLog(fmt.Sprintf("copy ucm2 to %s/usr/share/alsa", tools.TmpMountPath()), nil, nil, opts.TextView)
+		ios.Run(fmt.Sprintf("mkdir -p %s/usr/share/alsa/ucm2", tools.TmpMountPath()))
+		ios.Run(fmt.Sprintf("cp -r %s/ucm2/* %s/usr/share/alsa/ucm2", deviceConfigPath, tools.TmpMountPath()))
+	}
+
+	tools.PrintLog("set hostname", nil, nil, opts.TextView)
+	ios.Run(fmt.Sprintf("echo \"deepin-%s-%s\" | tee %s/etc/hostname", opts.Arch, opts.Device, tools.TmpMountPath()))
+
+	rootfs.ConfigureUser()
+
+	tools.PrintLog("update-initramfs -u", nil, nil, opts.TextView)
+	chroot.RunCommandByChoot(tools.TmpMountPath(), "update-initramfs -u")
+
+	chroot.UnMountChroot()
+	ios.Run(fmt.Sprintf("losetup -D /dev/%s", loop))
+
+	fixImageFile(imagePath)
+
+	tools.ModifyFileOwner(imagePath, false)
+}
+
+// 修复镜像文件
+func fixImageFile(img string) {
+	ios.Run(fmt.Sprintf("e2fsck -p -f %s", img))
+	ios.Run(fmt.Sprintf("resize2fs -M %s", img))
 }
 
 func GetImageName(distroName, distroVersion, device, arch, baseType string) string {
