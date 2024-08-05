@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/chenchongbiao/dev-tools/core/chroot"
 	"github.com/chenchongbiao/dev-tools/core/common"
 	"github.com/chenchongbiao/dev-tools/ios"
 	"github.com/chenchongbiao/dev-tools/tools"
@@ -106,4 +107,11 @@ func GetPackageList(baseType, arch, target string) (string, error) {
 	}
 
 	return minimalPackages, nil
+}
+
+func ConfigureUser() {
+	chroot.RunCommandByChoot(tools.TmpMountPath(), "useradd  -s /bin/bash -m -g users deepin")
+	chroot.RunCommandByChoot(tools.TmpMountPath(), "usermod -a -G sudo deepin")
+	chroot.RunCommandByChoot(tools.TmpMountPath(), "echo root:deepin | chpasswd")
+	chroot.RunCommandByChoot(tools.TmpMountPath(), "echo deepin:deepin | chpasswd")
 }
