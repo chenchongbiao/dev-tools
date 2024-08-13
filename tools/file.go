@@ -47,7 +47,8 @@ func CheckDpBuildDot() {
 	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
 		os.MkdirAll(outputPath, 0755)
 		os.Mkdir(outputImagePath, 0755)
-		ModifyFileOwner(tmpMountPath, true)
+		ModifyFileOwner(outputPath, true)
+		ModifyFileOwner(outputImagePath, true)
 	}
 }
 
