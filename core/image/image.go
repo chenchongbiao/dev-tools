@@ -248,26 +248,18 @@ func CreateOnlyRootfsImage(opts *common.BuildOptions) {
 		ios.Run(fmt.Sprintf("echo \"UUID=%s / ext4 defaults 0 1\" > %s/etc/fstab", rootfsUuid, tools.TmpMountPath()))
 		ios.Run(fmt.Sprintf("echo \"PARTLABEL=esp /boot/efi vfat umask=0077 0 1\" >> %s/etc/fstab", tools.TmpMountPath()))
 
-		ios.Run(fmt.Sprintf("mkdir %s/boot/efi", tools.TmpMountPath()))
-		tools.PrintLog(fmt.Sprintf("copy efi to %s/boot/efi", tools.TmpMountPath()), nil, nil, opts.TextView)
-		ios.Run(fmt.Sprintf("cp -r %s/EFI/* %s/boot/efi", deviceConfigPath, tools.TmpMountPath()))
-
-		tools.PrintLog(fmt.Sprintf("copy grup to %s/boot", tools.TmpMountPath()), nil, nil, opts.TextView)
-		ios.Run(fmt.Sprintf("cp -r %s/grub/ %s/boot", deviceConfigPath, tools.TmpMountPath()))
-
-		tools.PrintLog(fmt.Sprintf("copy kernel to %s/boot", tools.TmpMountPath()), nil, nil, opts.TextView)
-		ios.Run(fmt.Sprintf("cp -r %s/kernel/* %s/boot", deviceConfigPath, tools.TmpMountPath()))
+		tools.PrintLog(fmt.Sprintf("copy modules to %s/lib", tools.TmpMountPath()), nil, nil, opts.TextView)
 		ios.Run(fmt.Sprintf("mkdir %s/lib/modules", tools.TmpMountPath()))
 		ios.Run(fmt.Sprintf("cp -r %s/modules/* %s/lib/modules", deviceConfigPath, tools.TmpMountPath()))
-
-		tools.PrintLog(fmt.Sprintf("copy firmware to %s/lib", tools.TmpMountPath()), nil, nil, opts.TextView)
-		ios.Run(fmt.Sprintf("mkdir %s/lib/firmware", tools.TmpMountPath()))
-		ios.Run(fmt.Sprintf("cp -r %s/firmware/* %s/lib/firmware", deviceConfigPath, tools.TmpMountPath()))
 
 		tools.PrintLog(fmt.Sprintf("copy ucm2 to %s/usr/share/alsa", tools.TmpMountPath()), nil, nil, opts.TextView)
 		ios.Run(fmt.Sprintf("mkdir -p %s/usr/share/alsa/ucm2", tools.TmpMountPath()))
 		ios.Run(fmt.Sprintf("cp -r %s/ucm2/* %s/usr/share/alsa/ucm2", deviceConfigPath, tools.TmpMountPath()))
 	}
+
+	tools.PrintLog(fmt.Sprintf("copy firmware to %s/lib", tools.TmpMountPath()), nil, nil, opts.TextView)
+	ios.Run(fmt.Sprintf("mkdir %s/lib/firmware", tools.TmpMountPath()))
+	ios.Run(fmt.Sprintf("cp -r %s/firmware/* %s/lib/firmware", deviceConfigPath, tools.TmpMountPath()))
 
 	tools.PrintLog(fmt.Sprintf("copy extra packages to %s/tmp", tools.TmpMountPath()), nil, nil, opts.TextView)
 	ios.Run(fmt.Sprintf("cp -r %s/extra-packages/* %s/tmp", deviceConfigPath, tools.TmpMountPath()))
