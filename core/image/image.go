@@ -269,13 +269,16 @@ func CreateOnlyRootfsImage(opts *common.BuildOptions) {
 		ios.Run(fmt.Sprintf("cp -r %s/ucm2/* %s/usr/share/alsa/ucm2", deviceConfigPath, tools.TmpMountPath()))
 	}
 
+	tools.PrintLog(fmt.Sprintf("copy extra packages to %s/tmp", tools.TmpMountPath()), nil, nil, opts.TextView)
+	ios.Run(fmt.Sprintf("cp -r %s/extra-packages/* %s/tmp", deviceConfigPath, tools.TmpMountPath()))
+	tools.PrintLog(fmt.Sprintf("installing extra packages from %s/tmp", tools.TmpMountPath()), nil, nil, opts.TextView)
+	chroot.RunCommandByChoot(tools.TmpMountPath(), "cd /tmp && ls *deb")
+	chroot.RunCommandByChoot(tools.TmpMountPath(), "cd /tmp && apt install -y ./*deb")
+
 	tools.PrintLog("set hostname", nil, nil, opts.TextView)
 	ios.Run(fmt.Sprintf("echo \"deepin-%s-%s\" | tee %s/etc/hostname", opts.Arch, opts.Device, tools.TmpMountPath()))
 
 	rootfs.ConfigureUser()
-
-	tools.PrintLog("update-initramfs -u", nil, nil, opts.TextView)
-	chroot.RunCommandByChoot(tools.TmpMountPath(), "update-initramfs -u")
 
 	chroot.UnMountChroot()
 	ios.Run(fmt.Sprintf("losetup -D /dev/%s", loop))
@@ -288,7 +291,7 @@ func CreateOnlyRootfsImage(opts *common.BuildOptions) {
 // 修复镜像文件
 func fixImageFile(img string) {
 	ios.Run(fmt.Sprintf("e2fsck -p -f %s", img))
-	ios.Run(fmt.Sprintf("resize2fs -M %s", img))
+	ios.Run(fmt.Sprintf("resize2fs %s", img))
 }
 
 func GetImageName(distroName, distroVersion, device, arch, baseType string) string {
