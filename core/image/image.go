@@ -257,6 +257,21 @@ func CreateOnlyRootfsImage(opts *common.BuildOptions) {
 		ios.Run(fmt.Sprintf("cp -r %s/ucm2/* %s/usr/share/alsa/ucm2", deviceConfigPath, tools.TmpMountPath()))
 	}
 
+	tools.PrintLog(fmt.Sprintf("copy bin to %s/usr/local/", tools.TmpMountPath()), nil, nil, opts.TextView)
+	ios.Run(fmt.Sprintf("cp -r %s/bin/* %s/usr/local/bin", deviceConfigPath, tools.TmpMountPath()))
+
+	tools.PrintLog(fmt.Sprintf("copy init.d to %s/etc", tools.TmpMountPath()), nil, nil, opts.TextView)
+	ios.Run(fmt.Sprintf("cp -r %s/init.d/* %s/etc/init.d", deviceConfigPath, tools.TmpMountPath()))
+	if opts.Device == "roc-rk3588s-pc" {
+		ios.Run(fmt.Sprintf("cp -r %s/init.d/.usb_config %s/etc/init.d", deviceConfigPath, tools.TmpMountPath()))
+	}
+
+	tools.PrintLog(fmt.Sprintf("copy system service to %s/usr/lib/systemd/system", tools.TmpMountPath()), nil, nil, opts.TextView)
+	ios.Run(fmt.Sprintf("cp -r %s/system/* %s/usr/lib/systemd/system", deviceConfigPath, tools.TmpMountPath()))
+	if opts.Device == "roc-rk3588s-pc" {
+		ios.Run(fmt.Sprintf("ln -s /usr/lib/systemd/system/adbd.service %s/etc/systemd/system/multi-user.target.wants/adbd.service", tools.TmpMountPath()))
+	}
+
 	tools.PrintLog(fmt.Sprintf("copy firmware to %s/lib", tools.TmpMountPath()), nil, nil, opts.TextView)
 	ios.Run(fmt.Sprintf("mkdir %s/lib/firmware", tools.TmpMountPath()))
 	ios.Run(fmt.Sprintf("cp -r %s/firmware/* %s/lib/firmware", deviceConfigPath, tools.TmpMountPath()))

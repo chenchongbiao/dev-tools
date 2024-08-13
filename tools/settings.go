@@ -26,6 +26,10 @@ func SetDefaultSettings() {
 			"board": {
 				"minimal": "dmidecode,adduser,uuid-runtime,iw,initramfs-tools,polkitd,dbus-daemon,network-manager,systemd,systemd-timesyncd,kmod,udev,parted,pciutils,ldnsutils,wpasupplicant,wireless-tools,rfkill,efibootmgr,linux-firmware",
 				"desktop": ""
+			},
+			"rootfsimg": {
+				"minimal": "dmidecode,adduser,uuid-runtime,iw,polkitd,dbus-daemon,network-manager,systemd,systemd-timesyncd,kmod,udev,parted,pciutils,ldnsutils,wpasupplicant,wireless-tools,rfkill,linux-firmware",
+				"desktop": ""
 			}
 		}
 	`
