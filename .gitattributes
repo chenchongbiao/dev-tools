@@ -1,1 +1,1 @@
-/home/bluesky/code/dev-tools/config/arm64/rock-5b/extra-packages/linux-firmware_1.202.7_all.deb filter=lfs diff=lfs merge=lfs -text
+linux-firmware_1.202.7deepin1_all.deb filter=lfs diff=lfs merge=lfs -text
